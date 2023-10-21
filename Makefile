@@ -25,25 +25,25 @@ verif1: clean
 	python3 data_generator.py --mode 0 --target_dir verif1 --ncases 10
 	cp verif1/input.txt verif1/input.bk
 	mv verif1/input.txt $(TESTBENCH)/
-	$(VERILOG) $(TESTBENCH)/TESTBENCH.v -I$(CUR_DIR)/$(TESTBENCH) -I$(CUR_DIR)/$(RTL_DIR) 
+	$(VERILOG) $(TESTBENCH)/TESTBENCH.v -I$(CUR_DIR)/$(TESTBENCH) -I$(CUR_DIR)/$(RTL_DIR) -DRTL
 
 verif2: clean
 	python3 data_generator.py --mode 1 --target_dir verif2 --ncases 10
 	cp verif2/input.txt verif2/input.bk
 	mv verif2/input.txt $(TESTBENCH)/
-	$(VERILOG) $(TESTBENCH)/TESTBENCH.v -I$(CUR_DIR)/$(TESTBENCH) -I$(CUR_DIR)/$(RTL_DIR) 
+	$(VERILOG) $(TESTBENCH)/TESTBENCH.v -I$(CUR_DIR)/$(TESTBENCH) -I$(CUR_DIR)/$(RTL_DIR) -DRTL
 
 verif3: clean
 	python3 data_generator.py --mode 2 --target_dir verif3 --ncases 10
 	cp verif3/input.txt verif3/input.bk
 	mv verif3/input.txt $(TESTBENCH)/
-	$(VERILOG) $(TESTBENCH)/TESTBENCH.v -I$(CUR_DIR)/$(TESTBENCH) -I$(CUR_DIR)/$(RTL_DIR) 
+	$(VERILOG) $(TESTBENCH)/TESTBENCH.v -I$(CUR_DIR)/$(TESTBENCH) -I$(CUR_DIR)/$(RTL_DIR) -DRTL
 
 real: clean
 	python3 data_generator.py --mode 3 --target_dir verif4 --ncases 100
 	cp verif4/input.txt verif4/input.bk
 	mv verif4/input.txt $(TESTBENCH)/
-	$(VERILOG) $(TESTBENCH)/TESTBENCH.v -I$(CUR_DIR)/$(TESTBENCH) -I$(CUR_DIR)/$(RTL_DIR) 
+	$(VERILOG) $(TESTBENCH)/TESTBENCH.v -I$(CUR_DIR)/$(TESTBENCH) -I$(CUR_DIR)/$(RTL_DIR) -DRTL
 
 clean:
 	rm -rf verif*
