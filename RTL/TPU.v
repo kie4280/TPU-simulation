@@ -1,9 +1,3 @@
-`define STATE_RESET 2'd0
-`define STATE_BUSY 2'd1
-`define STATE_WRITE 2'd2
-`define STATE_FINISHED 2'd3
-
-
 module TPU(
   input clk,
   input rst_n,
@@ -32,6 +26,12 @@ module TPU(
 parameter n_rows=4;
 parameter n_cols=4;
 
+parameter STATE_RESET      = 0;
+parameter STATE_BUSY       = 1;
+parameter STATE_PAUSE      = 2;
+parameter STATE_WRITE      = 3;
+parameter STATE_IDLE       = 4;
+
 
 //* Implement your design here
 
@@ -41,7 +41,8 @@ reg [7:0] N_reg;
 
 reg [15:0] counter;
 reg [15:0] counter_stop;
-reg [1:0] state = `STATE_RESET;
+reg [2:0] cur_state = STATE_IDLE;
+reg [2:0] next_state = STATE_IDLE;
 
 assign A_wr_en = 1'b0;
 assign B_wr_en = 1'b0;
@@ -81,68 +82,80 @@ genvar i, j;
   end
 endgenerate
 
-always @(posedge clk, negedge rst_n) begin
-  if (~rst_n) begin
-    busy <= 0;
+always @(posedge clk, negedge rst_n, posedge in_valid) begin
+  if (cur_state == STATE_WRITE 
+    || cur_state == STATE_BUSY
+    || cur_state == STATE_RESET
+    || cur_state == STATE_PAUSE
+    || in_valid) begin
+    busy = 1;
   end
-  else if (in_valid) begin
-    busy <= 1;
-  end
-  else if (state == `STATE_FINISHED) begin
-    busy <= 0;
+  else begin
+    busy = 0;
   end
 end
-
 
 
 always @(posedge clk) begin
-  if (in_valid) begin
-    state = `STATE_BUSY;
-    counter <= 0;
-    counter_stop <= K*M-1;
-    PE_enable = 1;
-    PE_clear = 0;
-  end
-  else if (busy && state == `STATE_BUSY) begin
-
-    if (counter >= counter_stop) begin
-      state = `STATE_WRITE;
-      counter <= 0;
-      counter_stop <= K_reg-1;
-    end
-    else begin
-      counter <= counter + 1;
-    end
-
-  end
-  else if (busy && state == `STATE_WRITE) begin
-    if (counter >= counter_stop) begin
-      counter <= 0;
-      state = `STATE_FINISHED;
-    end
-    else begin
-      counter <= counter + 1;
-    end
-  end
-  else if (~busy) begin
-    state = `STATE_RESET;
-  end
+  cur_state <= next_state; 
 end
 
+always @(*) begin
+  case (cur_state)
+  STATE_RESET: begin
+    next_state = STATE_BUSY;
+  end
+  
+  STATE_BUSY: begin
+    if (counter >= counter_stop) begin
+      next_state = STATE_PAUSE;
+    end
+
+  end
+
+  STATE_PAUSE: begin
+    next_state = STATE_WRITE;
+  end
+
+  STATE_WRITE: begin
+    if (counter >= counter_stop) begin
+      next_state = STATE_IDLE;
+    end
+
+  end
+
+  STATE_IDLE: begin
+    if (in_valid) begin
+      next_state = STATE_RESET;
+    end
+  end
+
+  default:;
+
+  endcase
+end
+
+always @(posedge in_valid) begin
+  K_reg <= K;
+  M_reg <= M;
+  N_reg <= N;
+
+end
 
 reg [15:0] index;
 
 always @(posedge clk) begin
-  case (state)
+  case (cur_state)
 
-  `STATE_RESET: begin
-    K_reg <= K;
-    M_reg <= M;
-    N_reg <= N;
-    A_index = 0;
-    B_index = 0;
-    C_index = 0;
-    C_wr_en = 0;
+  STATE_RESET: begin
+    A_index <= 0;
+    B_index <= 0;
+    C_index <= 0;
+    C_wr_en <= 0;
+    counter <= 0;
+    PE_clear <= 0;
+    PE_enable <= 1;
+    counter_stop <= N_reg * M_reg - 1;
     for (integer i=0; i < n_rows; i=i+1) begin
       for (integer j=0; j < n_cols; j=j+1) begin
         top_data[i][j] <= 0;
@@ -151,32 +164,34 @@ always @(posedge clk) begin
     end
   end
 
-  `STATE_BUSY: begin
-    PE_enable = 1;
-    PE_clear = 0;
+  STATE_BUSY: begin
+    counter <= counter + 1;
     A_index <= counter + 1;
     B_index <= counter + 1;
 
     for (integer i=0; i < n_rows; i=i+1) begin
-      top_data[i][i] <= B_data_out[31-i*8 -: 8];
-      left_data[i][i] <= A_data_out[31-i*8 -: 8];
+      top_data[i][i] <= B_data_out[31- i * 8 -: 8];
+      left_data[i][i] <= A_data_out[31- i * 8 -: 8];
+
       for (integer j=0; j < i; j=j+1) begin
         top_data[j][i] <= top_data[j+1][i];
         left_data[i][j] <= left_data[i][j+1];
 
       end
     end
-
-
   end
 
-  `STATE_FINISHED: begin
+
+  STATE_PAUSE: begin
+    counter <= 0;
+    counter_stop <= K_reg - 1;
     PE_enable <= 0;
-    PE_clear <= 1;
 
   end
 
-  `STATE_WRITE: begin
+
+  STATE_WRITE: begin
+    counter <= counter + 1;
     C_wr_en <= 1;
     C_index <= counter;
     C_data_in <= {
@@ -185,6 +200,14 @@ always @(posedge clk) begin
       results[counter][2][31:0],
       results[counter][3][31:0]
     };
+
+  end
+
+  STATE_IDLE: begin
+    PE_enable <= 0;
+    PE_clear <= 1;
+    counter <= 0;
+    counter_stop <= 0;
 
   end
 
@@ -209,7 +232,7 @@ module PE(
   output reg [127:0] result
 ); 
 
-wire mul;
+wire [15:0] mul;
 assign mul = left * top;
 
 always @(posedge clk or posedge clear) begin
