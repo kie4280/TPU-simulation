@@ -136,13 +136,11 @@ always @(*) begin
 end
 
 always @(posedge in_valid) begin
-  K_reg <= K;
-  M_reg <= M;
-  N_reg <= N;
+  K_reg = K;
+  M_reg = M;
+  N_reg = N;
 
 end
-
-reg [15:0] index;
 
 always @(posedge clk) begin
   case (cur_state)
@@ -155,7 +153,7 @@ always @(posedge clk) begin
     counter <= 0;
     PE_clear <= 0;
     PE_enable <= 1;
-    counter_stop <= N_reg * M_reg - 1;
+    counter_stop <= K_reg + 8 - 1;
     for (integer i=0; i < n_rows; i=i+1) begin
       for (integer j=0; j < n_cols; j=j+1) begin
         top_data[i][j] <= 0;
@@ -170,8 +168,8 @@ always @(posedge clk) begin
     B_index <= counter + 1;
 
     for (integer i=0; i < n_rows; i=i+1) begin
-      top_data[i][i] <= B_data_out[31- i * 8 -: 8];
-      left_data[i][i] <= A_data_out[31- i * 8 -: 8];
+      top_data[i][i] <= (counter < K_reg ? B_data_out[31-i*8 -: 8] : 32'd0);
+      left_data[i][i] <= (counter < K_reg ? A_data_out[31-i*8 -: 8] : 32'd0);
 
       for (integer j=0; j < i; j=j+1) begin
         top_data[j][i] <= top_data[j+1][i];
@@ -184,7 +182,7 @@ always @(posedge clk) begin
 
   STATE_PAUSE: begin
     counter <= 0;
-    counter_stop <= K_reg - 1;
+    counter_stop <= 4-1;
     PE_enable <= 0;
 
   end
@@ -208,6 +206,7 @@ always @(posedge clk) begin
     PE_clear <= 1;
     counter <= 0;
     counter_stop <= 0;
+    C_wr_en <= 0;
 
   end
 
@@ -232,7 +231,7 @@ module PE(
   output reg [127:0] result
 ); 
 
-wire [15:0] mul;
+wire [31:0] mul;
 assign mul = left * top;
 
 always @(posedge clk or posedge clear) begin
