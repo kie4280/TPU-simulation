@@ -35,9 +35,9 @@ wire [127:0]    C_data_out;
 
 
 initial begin
-    `ifdef RTL
-        // $dumpfile("wave.vcd");
-        // $dumpvars(0, TESTBENCH);
+    `ifdef WAVE
+        $dumpfile("wave.fst");
+        $dumpvars(0, TESTBENCH);
     // `elsif GATE
         // $sdf_annotate("TPU_SYN.sdf",U_TPU);
         // $fsdbDumpfile("TPU.fsdb");

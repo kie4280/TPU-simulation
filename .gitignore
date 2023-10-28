@@ -5,6 +5,7 @@ ncverilog*
 build/
 novas*
 *.vcd
+*.fst
 *.fsdb
 nWave*
 vfastLog*
@@ -23,5 +24,6 @@ verif1
 verif2
 verif3
 verif4
+huge
 env.sh
 *.out
