@@ -93,6 +93,8 @@ def gen_one_case(i, in_fd=None, c_fd=None, all_one=False, mode=0, shape_range=(4
         K = random.randint(shape_range[0], shape_range[1])
         M = random.randint(shape_range[0], shape_range[1])
         N = random.randint(shape_range[0], shape_range[1])
+        # M = 4
+        # N = 5
 
     #* generate the matrix
 
